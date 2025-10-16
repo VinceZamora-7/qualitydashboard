@@ -1,0 +1,2236 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Quality Management Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+      body {
+        box-sizing: border-box;
+      }
+      .metric-card {
+        transition: all 0.3s ease;
+      }
+      .metric-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+      }
+      .progress-bar {
+        transition: width 0.8s ease-in-out;
+      }
+      .status-indicator {
+        animation: pulse 2s infinite;
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.7;
+        }
+      }
+      .nav-tab {
+        transition: all 0.3s ease;
+      }
+      .nav-tab.active {
+        background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+      }
+      .nav-tab:hover:not(.active) {
+        background: linear-gradient(135deg, #eff6ff, #dbeafe);
+        color: #2563eb;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+      .dashboard-content {
+        display: none;
+      }
+      .dashboard-content.active {
+        display: block;
+      }
+      .login-modal {
+        display: none;
+      }
+      .login-modal.active {
+        display: flex;
+      }
+    </style>
+  </head>
+  <body
+    class="bg-gradient-to-br from-slate-50 to-blue-50 min-h-screen font-sans"
+  >
+    <!-- Login/Register Modal -->
+    <div
+      id="loginModal"
+      class="login-modal fixed inset-0 bg-black bg-opacity-50 items-center justify-center z-50"
+    >
+      <div class="bg-white rounded-2xl p-8 max-w-md w-full mx-4 shadow-2xl">
+        <div class="text-center mb-6">
+          <h2 id="modalTitle" class="text-2xl font-bold text-gray-900">
+            Login
+          </h2>
+          <p class="text-gray-600 mt-2">Access your quality dashboard</p>
+        </div>
+        <form id="authForm" onsubmit="handleAuth(event)">
+          <div class="space-y-4">
+            <div>
+              <label
+                for="email"
+                class="block text-sm font-medium text-gray-700 mb-1"
+                >Email</label
+              >
+              <input
+                type="email"
+                id="email"
+                required
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            <div>
+              <label
+                for="password"
+                class="block text-sm font-medium text-gray-700 mb-1"
+                >Password</label
+              >
+              <input
+                type="password"
+                id="password"
+                required
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+            <div id="confirmPasswordDiv" style="display: none">
+              <label
+                for="confirmPassword"
+                class="block text-sm font-medium text-gray-700 mb-1"
+                >Confirm Password</label
+              >
+              <input
+                type="password"
+                id="confirmPassword"
+                class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+            </div>
+          </div>
+          <div class="flex space-x-3 mt-6">
+            <button
+              type="submit"
+              id="authSubmit"
+              class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-medium transition-colors"
+            >
+              Login
+            </button>
+            <button
+              type="button"
+              onclick="closeModal()"
+              class="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-3 rounded-lg font-medium transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+          <div class="text-center mt-4">
+            <button
+              type="button"
+              id="switchAuth"
+              onclick="switchAuthMode()"
+              class="text-blue-600 hover:text-blue-700 text-sm"
+            >
+              Don't have an account? Register
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <header class="bg-white shadow-sm border-b border-gray-200">
+      <div class="max-w-7xl mx-auto px-6 py-4">
+        <div class="flex items-center justify-between mb-6">
+          <div>
+            <h1 class="text-2xl font-bold text-gray-900">
+              Quality Management Dashboard
+            </h1>
+            <p class="text-gray-600 mt-1">
+              Service line specific quality metrics and analytics
+            </p>
+          </div>
+          <div class="flex items-center space-x-4">
+            <div class="text-sm text-gray-500">
+              Last updated:
+              <span id="lastUpdated" class="font-medium">Just now</span>
+            </div>
+            <div class="flex space-x-2">
+              <button
+                onclick="showLogin()"
+                class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors text-sm"
+              >
+                Login
+              </button>
+              <button
+                onclick="showRegister()"
+                class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors text-sm"
+              >
+                Register
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Service Line Navigation -->
+        <div class="bg-gray-50 rounded-xl p-4">
+          <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
+            <button
+              onclick="showDashboard('overview')"
+              class="nav-tab active flex flex-col items-center p-4 rounded-xl text-sm font-medium transition-all duration-300 bg-blue-600 text-white shadow-lg"
+            >
+              <svg
+                class="w-6 h-6 mb-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                ></path>
+              </svg>
+              <span class="text-center">Overview</span>
+            </button>
+            <button
+              onclick="showDashboard('bap')"
+              class="nav-tab flex flex-col items-center p-4 rounded-xl text-sm font-medium transition-all duration-300 bg-white text-gray-700 hover:bg-blue-50 hover:text-blue-600 shadow-sm"
+            >
+              <svg
+                class="w-6 h-6 mb-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                ></path>
+              </svg>
+              <span class="text-center">BAP</span>
+            </button>
+            <button
+              onclick="showDashboard('email')"
+              class="nav-tab flex flex-col items-center p-4 rounded-xl text-sm font-medium transition-all duration-300 bg-white text-gray-700 hover:bg-blue-50 hover:text-blue-600 shadow-sm"
+            >
+              <svg
+                class="w-6 h-6 mb-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                ></path>
+              </svg>
+              <span class="text-center">Email</span>
+            </button>
+            <button
+              onclick="showDashboard('data')"
+              class="nav-tab flex flex-col items-center p-4 rounded-xl text-sm font-medium transition-all duration-300 bg-white text-gray-700 hover:bg-blue-50 hover:text-blue-600 shadow-sm"
+            >
+              <svg
+                class="w-6 h-6 mb-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"
+                ></path>
+              </svg>
+              <span class="text-center">Data</span>
+            </button>
+            <button
+              onclick="showDashboard('events')"
+              class="nav-tab flex flex-col items-center p-4 rounded-xl text-sm font-medium transition-all duration-300 bg-white text-gray-700 hover:bg-blue-50 hover:text-blue-600 shadow-sm"
+            >
+              <svg
+                class="w-6 h-6 mb-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                ></path>
+              </svg>
+              <span class="text-center">Events</span>
+            </button>
+            <button
+              onclick="showDashboard('social-triage')"
+              class="nav-tab flex flex-col items-center p-4 rounded-xl text-sm font-medium transition-all duration-300 bg-white text-gray-700 hover:bg-blue-50 hover:text-blue-600 shadow-sm"
+            >
+              <svg
+                class="w-6 h-6 mb-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z"
+                ></path>
+              </svg>
+              <span class="text-center">Social Triage</span>
+            </button>
+            <button
+              onclick="showDashboard('sdp')"
+              class="nav-tab flex flex-col items-center p-4 rounded-xl text-sm font-medium transition-all duration-300 bg-white text-gray-700 hover:bg-blue-50 hover:text-blue-600 shadow-sm"
+            >
+              <svg
+                class="w-6 h-6 mb-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
+                ></path>
+              </svg>
+              <span class="text-center">SDP</span>
+            </button>
+            <button
+              onclick="showDashboard('bap-sdp')"
+              class="nav-tab flex flex-col items-center p-4 rounded-xl text-sm font-medium transition-all duration-300 bg-white text-gray-700 hover:bg-blue-50 hover:text-blue-600 shadow-sm"
+            >
+              <svg
+                class="w-6 h-6 mb-2"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+                ></path>
+              </svg>
+              <span class="text-center">BAP - SDP</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-6 py-8">
+      <!-- Overview Dashboard -->
+      <div id="overview" class="dashboard-content active">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-gray-600 text-sm font-medium">
+                  Overall Quality Score
+                </p>
+                <p class="text-3xl font-bold text-green-600">94.2%</p>
+              </div>
+              <div
+                class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center"
+              >
+                <svg
+                  class="w-6 h-6 text-green-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                  ></path>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-gray-600 text-sm font-medium">Active Issues</p>
+                <p class="text-3xl font-bold text-orange-600">7</p>
+              </div>
+              <div
+                class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center"
+              >
+                <svg
+                  class="w-6 h-6 text-orange-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+                  ></path>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-gray-600 text-sm font-medium">
+                  Customer Satisfaction
+                </p>
+                <p class="text-3xl font-bold text-blue-600">4.7/5</p>
+              </div>
+              <div
+                class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center"
+              >
+                <svg
+                  class="w-6 h-6 text-blue-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                  ></path>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-gray-600 text-sm font-medium">Compliance Rate</p>
+                <p class="text-3xl font-bold text-purple-600">98.1%</p>
+              </div>
+              <div
+                class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center"
+              >
+                <svg
+                  class="w-6 h-6 text-purple-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                  ></path>
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+          <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">
+              Service Line Performance
+            </h3>
+            <div class="space-y-3">
+              <div class="flex justify-between items-center">
+                <span class="text-sm text-gray-600"
+                  >BAP (Budget & Activity Planning)</span
+                >
+                <span class="text-sm font-medium text-green-600">96.8%</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-sm text-gray-600">Email Services</span>
+                <span class="text-sm font-medium text-blue-600">94.3%</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-sm text-gray-600">Data Management</span>
+                <span class="text-sm font-medium text-yellow-600">87.2%</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-sm text-gray-600">Events Management</span>
+                <span class="text-sm font-medium text-green-600">92.1%</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-sm text-gray-600">Social Triage</span>
+                <span class="text-sm font-medium text-purple-600">89.7%</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-sm text-gray-600"
+                  >SDP (Service Delivery Planner)</span
+                >
+                <span class="text-sm font-medium text-blue-600">91.4%</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-sm text-gray-600">BAP - SDP Integration</span>
+                <span class="text-sm font-medium text-red-600">78.9%</span>
+              </div>
+            </div>
+          </div>
+
+          <div
+            class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 xl:col-span-2"
+          >
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">
+              Quality Issues - Pareto Analysis
+            </h3>
+            <p class="text-sm text-gray-600 mb-4">
+              Focus on the top issues that impact 80% of quality problems
+            </p>
+            <div class="relative">
+              <canvas
+                id="paretoChart"
+                width="600"
+                height="300"
+                class="w-full"
+              ></canvas>
+            </div>
+            <div class="mt-4 text-xs text-gray-500">
+              <p>
+                📊 The chart shows issue frequency (bars) and cumulative impact
+                (line). Focus on issues left of the 80% line for maximum
+                improvement.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BAP Dashboard -->
+      <div id="bap" class="dashboard-content">
+        <div class="mb-6">
+          <h2 class="text-xl font-bold text-gray-900 mb-2">
+            BAP (Budget and Activity Planning) Quality Dashboard
+          </h2>
+          <p class="text-gray-600">
+            Budget accuracy, planning efficiency, and resource allocation
+            metrics
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-gray-600 text-sm font-medium">Budget Accuracy</p>
+                <p class="text-3xl font-bold text-green-600">96.8%</p>
+              </div>
+              <div
+                class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center"
+              >
+                <svg
+                  class="w-6 h-6 text-green-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  ></path>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-gray-600 text-sm font-medium">
+                  Planning Efficiency
+                </p>
+                <p class="text-3xl font-bold text-blue-600">89.4%</p>
+              </div>
+              <div
+                class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center"
+              >
+                <svg
+                  class="w-6 h-6 text-blue-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M13 10V3L4 14h7v7l9-11h-7z"
+                  ></path>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-gray-600 text-sm font-medium">
+                  Resource Allocation
+                </p>
+                <p class="text-3xl font-bold text-purple-600">92.7%</p>
+              </div>
+              <div
+                class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center"
+              >
+                <svg
+                  class="w-6 h-6 text-purple-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"
+                  ></path>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-gray-600 text-sm font-medium">Active Projects</p>
+                <p class="text-3xl font-bold text-orange-600">47</p>
+              </div>
+              <div
+                class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center"
+              >
+                <svg
+                  class="w-6 h-6 text-orange-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                  ></path>
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">
+              Budget Categories
+            </h3>
+            <div class="space-y-4">
+              <div>
+                <div class="flex justify-between text-sm mb-1">
+                  <span class="text-gray-600">Personnel Costs</span>
+                  <span class="font-medium text-green-600">98.2%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    class="bg-green-500 h-2 rounded-full progress-bar"
+                    style="width: 98%"
+                  ></div>
+                </div>
+              </div>
+              <div>
+                <div class="flex justify-between text-sm mb-1">
+                  <span class="text-gray-600">Operational Expenses</span>
+                  <span class="font-medium text-blue-600">94.7%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    class="bg-blue-500 h-2 rounded-full progress-bar"
+                    style="width: 95%"
+                  ></div>
+                </div>
+              </div>
+              <div>
+                <div class="flex justify-between text-sm mb-1">
+                  <span class="text-gray-600">Capital Investments</span>
+                  <span class="font-medium text-purple-600">91.3%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    class="bg-purple-500 h-2 rounded-full progress-bar"
+                    style="width: 91%"
+                  ></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">
+              Planning Metrics
+            </h3>
+            <div class="space-y-3">
+              <div class="flex justify-between items-center">
+                <span class="text-sm text-gray-600">Forecast Accuracy</span>
+                <span class="text-sm font-medium text-green-600">94.8%</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-sm text-gray-600">Timeline Adherence</span>
+                <span class="text-sm font-medium text-blue-600">87.2%</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-sm text-gray-600">Variance Control</span>
+                <span class="text-sm font-medium text-purple-600">92.1%</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-sm text-gray-600">Approval Rate</span>
+                <span class="text-sm font-medium text-orange-600">96.3%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Email Dashboard -->
+      <div id="email" class="dashboard-content">
+        <div class="mb-6">
+          <h2 class="text-xl font-bold text-gray-900 mb-2">
+            Email Services Quality Dashboard
+          </h2>
+          <p class="text-gray-600">
+            Email delivery, engagement rates, and communication quality metrics
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-gray-600 text-sm font-medium">Delivery Rate</p>
+                <p class="text-3xl font-bold text-green-600">99.2%</p>
+              </div>
+              <div
+                class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center"
+              >
+                <svg
+                  class="w-6 h-6 text-green-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+                  ></path>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-gray-600 text-sm font-medium">Open Rate</p>
+                <p class="text-3xl font-bold text-blue-600">24.7%</p>
+              </div>
+              <div
+                class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center"
+              >
+                <svg
+                  class="w-6 h-6 text-blue-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                  ></path>
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                  ></path>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-gray-600 text-sm font-medium">Click Rate</p>
+                <p class="text-3xl font-bold text-purple-600">3.8%</p>
+              </div>
+              <div
+                class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center"
+              >
+                <svg
+                  class="w-6 h-6 text-purple-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"
+                  ></path>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-gray-600 text-sm font-medium">Bounce Rate</p>
+                <p class="text-3xl font-bold text-orange-600">0.8%</p>
+              </div>
+              <div
+                class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center"
+              >
+                <svg
+                  class="w-6 h-6 text-orange-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+                  ></path>
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">
+              Campaign Performance
+            </h3>
+            <div class="space-y-4">
+              <div>
+                <div class="flex justify-between text-sm mb-1">
+                  <span class="text-gray-600">Newsletter</span>
+                  <span class="font-medium text-green-600">28.4%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    class="bg-green-500 h-2 rounded-full progress-bar"
+                    style="width: 85%"
+                  ></div>
+                </div>
+              </div>
+              <div>
+                <div class="flex justify-between text-sm mb-1">
+                  <span class="text-gray-600">Promotional</span>
+                  <span class="font-medium text-blue-600">19.7%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    class="bg-blue-500 h-2 rounded-full progress-bar"
+                    style="width: 66%"
+                  ></div>
+                </div>
+              </div>
+              <div>
+                <div class="flex justify-between text-sm mb-1">
+                  <span class="text-gray-600">Transactional</span>
+                  <span class="font-medium text-purple-600">45.2%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    class="bg-purple-500 h-2 rounded-full progress-bar"
+                    style="width: 90%"
+                  ></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">
+              Quality Metrics
+            </h3>
+            <div class="space-y-3">
+              <div class="flex justify-between items-center">
+                <span class="text-sm text-gray-600">Spam Score</span>
+                <span class="text-sm font-medium text-green-600">0.2%</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-sm text-gray-600">Unsubscribe Rate</span>
+                <span class="text-sm font-medium text-blue-600">0.5%</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-sm text-gray-600">List Growth Rate</span>
+                <span class="text-sm font-medium text-purple-600">12.3%</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-sm text-gray-600">Engagement Score</span>
+                <span class="text-sm font-medium text-orange-600">87.4%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Data Dashboard -->
+      <div id="data" class="dashboard-content">
+        <div class="mb-6">
+          <h2 class="text-xl font-bold text-gray-900 mb-2">
+            Data Management Quality Dashboard
+          </h2>
+          <p class="text-gray-600">
+            Data accuracy, processing efficiency, and integrity metrics
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-gray-600 text-sm font-medium">Data Accuracy</p>
+                <p class="text-3xl font-bold text-yellow-600">87.2%</p>
+              </div>
+              <div
+                class="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center"
+              >
+                <svg
+                  class="w-6 h-6 text-yellow-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"
+                  ></path>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-gray-600 text-sm font-medium">
+                  Processing Speed
+                </p>
+                <p class="text-3xl font-bold text-blue-600">2.3s</p>
+              </div>
+              <div
+                class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center"
+              >
+                <svg
+                  class="w-6 h-6 text-blue-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M13 10V3L4 14h7v7l9-11h-7z"
+                  ></path>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-gray-600 text-sm font-medium">Data Integrity</p>
+                <p class="text-3xl font-bold text-green-600">94.8%</p>
+              </div>
+              <div
+                class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center"
+              >
+                <svg
+                  class="w-6 h-6 text-green-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                  ></path>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-gray-600 text-sm font-medium">Error Rate</p>
+                <p class="text-3xl font-bold text-red-600">5.2%</p>
+              </div>
+              <div
+                class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center"
+              >
+                <svg
+                  class="w-6 h-6 text-red-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+                  ></path>
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">
+              Data Sources
+            </h3>
+            <div class="space-y-4">
+              <div>
+                <div class="flex justify-between text-sm mb-1">
+                  <span class="text-gray-600">Customer Database</span>
+                  <span class="font-medium text-green-600">96.2%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    class="bg-green-500 h-2 rounded-full progress-bar"
+                    style="width: 96%"
+                  ></div>
+                </div>
+              </div>
+              <div>
+                <div class="flex justify-between text-sm mb-1">
+                  <span class="text-gray-600">Transaction Logs</span>
+                  <span class="font-medium text-yellow-600">82.7%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    class="bg-yellow-500 h-2 rounded-full progress-bar"
+                    style="width: 83%"
+                  ></div>
+                </div>
+              </div>
+              <div>
+                <div class="flex justify-between text-sm mb-1">
+                  <span class="text-gray-600">External APIs</span>
+                  <span class="font-medium text-red-600">74.3%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    class="bg-red-500 h-2 rounded-full progress-bar"
+                    style="width: 74%"
+                  ></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">
+              Data Issues - Pareto Analysis
+            </h3>
+            <p class="text-sm text-gray-600 mb-4">
+              80/20 rule: Focus on top issues for maximum impact
+            </p>
+            <div class="relative">
+              <canvas
+                id="dataIssuesPareto"
+                width="400"
+                height="250"
+                class="w-full"
+              ></canvas>
+            </div>
+            <div class="mt-4 space-y-2">
+              <div
+                class="flex items-center justify-between p-2 bg-red-50 rounded border border-red-200"
+              >
+                <span class="text-xs text-gray-900">API Timeouts (45%)</span>
+                <span
+                  class="text-xs text-red-600 bg-red-100 px-2 py-1 rounded-full"
+                  >Critical</span
+                >
+              </div>
+              <div
+                class="flex items-center justify-between p-2 bg-red-50 rounded border border-red-200"
+              >
+                <span class="text-xs text-gray-900"
+                  >Validation Errors (32%)</span
+                >
+                <span
+                  class="text-xs text-red-600 bg-red-100 px-2 py-1 rounded-full"
+                  >Critical</span
+                >
+              </div>
+              <div
+                class="flex items-center justify-between p-2 bg-yellow-50 rounded border border-yellow-200"
+              >
+                <span class="text-xs text-gray-900">Sync Delays (23%)</span>
+                <span
+                  class="text-xs text-yellow-600 bg-yellow-100 px-2 py-1 rounded-full"
+                  >Medium</span
+                >
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Events Dashboard -->
+      <div id="events" class="dashboard-content">
+        <div class="mb-6">
+          <h2 class="text-xl font-bold text-gray-900 mb-2">
+            Events Management Quality Dashboard
+          </h2>
+          <p class="text-gray-600">
+            Event planning, execution success, and attendee satisfaction metrics
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-gray-600 text-sm font-medium">
+                  Event Success Rate
+                </p>
+                <p class="text-3xl font-bold text-green-600">92.1%</p>
+              </div>
+              <div
+                class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center"
+              >
+                <svg
+                  class="w-6 h-6 text-green-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  ></path>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-gray-600 text-sm font-medium">Attendance Rate</p>
+                <p class="text-3xl font-bold text-blue-600">87.3%</p>
+              </div>
+              <div
+                class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center"
+              >
+                <svg
+                  class="w-6 h-6 text-blue-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                  ></path>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-gray-600 text-sm font-medium">
+                  Satisfaction Score
+                </p>
+                <p class="text-3xl font-bold text-purple-600">4.5/5</p>
+              </div>
+              <div
+                class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center"
+              >
+                <svg
+                  class="w-6 h-6 text-purple-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"
+                  ></path>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-gray-600 text-sm font-medium">Upcoming Events</p>
+                <p class="text-3xl font-bold text-orange-600">15</p>
+              </div>
+              <div
+                class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center"
+              >
+                <svg
+                  class="w-6 h-6 text-orange-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                  ></path>
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">
+              Event Types Performance
+            </h3>
+            <div class="space-y-4">
+              <div>
+                <div class="flex justify-between text-sm mb-1">
+                  <span class="text-gray-600">Webinars</span>
+                  <span class="font-medium text-green-600">94.2%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    class="bg-green-500 h-2 rounded-full progress-bar"
+                    style="width: 94%"
+                  ></div>
+                </div>
+              </div>
+              <div>
+                <div class="flex justify-between text-sm mb-1">
+                  <span class="text-gray-600">Conferences</span>
+                  <span class="font-medium text-blue-600">89.7%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    class="bg-blue-500 h-2 rounded-full progress-bar"
+                    style="width: 90%"
+                  ></div>
+                </div>
+              </div>
+              <div>
+                <div class="flex justify-between text-sm mb-1">
+                  <span class="text-gray-600">Workshops</span>
+                  <span class="font-medium text-purple-600">91.8%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    class="bg-purple-500 h-2 rounded-full progress-bar"
+                    style="width: 92%"
+                  ></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">
+              Event Metrics
+            </h3>
+            <div class="space-y-3">
+              <div class="flex justify-between items-center">
+                <span class="text-sm text-gray-600">Planning Efficiency</span>
+                <span class="text-sm font-medium text-green-600">88.4%</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-sm text-gray-600">Budget Adherence</span>
+                <span class="text-sm font-medium text-blue-600">93.7%</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-sm text-gray-600">Vendor Performance</span>
+                <span class="text-sm font-medium text-purple-600">91.2%</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-sm text-gray-600">Post-Event Follow-up</span>
+                <span class="text-sm font-medium text-orange-600">85.6%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Social Triage Dashboard -->
+      <div id="social-triage" class="dashboard-content">
+        <div class="mb-6">
+          <h2 class="text-xl font-bold text-gray-900 mb-2">
+            Social Triage Quality Dashboard
+          </h2>
+          <p class="text-gray-600">
+            Social media monitoring, response times, and engagement quality
+            metrics
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-gray-600 text-sm font-medium">Response Time</p>
+                <p class="text-3xl font-bold text-green-600">12 min</p>
+              </div>
+              <div
+                class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center"
+              >
+                <svg
+                  class="w-6 h-6 text-green-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                  ></path>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-gray-600 text-sm font-medium">Engagement Rate</p>
+                <p class="text-3xl font-bold text-blue-600">89.7%</p>
+              </div>
+              <div
+                class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center"
+              >
+                <svg
+                  class="w-6 h-6 text-blue-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z"
+                  ></path>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-gray-600 text-sm font-medium">Sentiment Score</p>
+                <p class="text-3xl font-bold text-purple-600">+0.73</p>
+              </div>
+              <div
+                class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center"
+              >
+                <svg
+                  class="w-6 h-6 text-purple-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M14.828 14.828a4 4 0 01-5.656 0M9 10h1.01M15 10h1.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  ></path>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-gray-600 text-sm font-medium">Active Mentions</p>
+                <p class="text-3xl font-bold text-orange-600">247</p>
+              </div>
+              <div
+                class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center"
+              >
+                <svg
+                  class="w-6 h-6 text-orange-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"
+                  ></path>
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">
+              Platform Performance
+            </h3>
+            <div class="space-y-4">
+              <div>
+                <div class="flex justify-between text-sm mb-1">
+                  <span class="text-gray-600">Twitter</span>
+                  <span class="font-medium text-green-600">92.4%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    class="bg-green-500 h-2 rounded-full progress-bar"
+                    style="width: 92%"
+                  ></div>
+                </div>
+              </div>
+              <div>
+                <div class="flex justify-between text-sm mb-1">
+                  <span class="text-gray-600">Facebook</span>
+                  <span class="font-medium text-blue-600">87.8%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    class="bg-blue-500 h-2 rounded-full progress-bar"
+                    style="width: 88%"
+                  ></div>
+                </div>
+              </div>
+              <div>
+                <div class="flex justify-between text-sm mb-1">
+                  <span class="text-gray-600">Instagram</span>
+                  <span class="font-medium text-purple-600">89.3%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    class="bg-purple-500 h-2 rounded-full progress-bar"
+                    style="width: 89%"
+                  ></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">
+              Triage Metrics
+            </h3>
+            <div class="space-y-3">
+              <div class="flex justify-between items-center">
+                <span class="text-sm text-gray-600"
+                  >Priority Classification</span
+                >
+                <span class="text-sm font-medium text-green-600">94.2%</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-sm text-gray-600">Escalation Rate</span>
+                <span class="text-sm font-medium text-blue-600">8.7%</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-sm text-gray-600">Resolution Rate</span>
+                <span class="text-sm font-medium text-purple-600">91.4%</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-sm text-gray-600">Customer Satisfaction</span>
+                <span class="text-sm font-medium text-orange-600">4.6/5</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SDP Dashboard -->
+      <div id="sdp" class="dashboard-content">
+        <div class="mb-6">
+          <h2 class="text-xl font-bold text-gray-900 mb-2">
+            SDP (Service Delivery Planner) Quality Dashboard
+          </h2>
+          <p class="text-gray-600">
+            Service delivery efficiency, resource planning, and execution
+            metrics
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-gray-600 text-sm font-medium">
+                  Delivery Efficiency
+                </p>
+                <p class="text-3xl font-bold text-green-600">91.4%</p>
+              </div>
+              <div
+                class="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center"
+              >
+                <svg
+                  class="w-6 h-6 text-green-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"
+                  ></path>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-gray-600 text-sm font-medium">
+                  Resource Utilization
+                </p>
+                <p class="text-3xl font-bold text-blue-600">87.8%</p>
+              </div>
+              <div
+                class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center"
+              >
+                <svg
+                  class="w-6 h-6 text-blue-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                  ></path>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-gray-600 text-sm font-medium">SLA Compliance</p>
+                <p class="text-3xl font-bold text-purple-600">94.6%</p>
+              </div>
+              <div
+                class="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center"
+              >
+                <svg
+                  class="w-6 h-6 text-purple-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"
+                  ></path>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-gray-600 text-sm font-medium">Active Services</p>
+                <p class="text-3xl font-bold text-orange-600">89</p>
+              </div>
+              <div
+                class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center"
+              >
+                <svg
+                  class="w-6 h-6 text-orange-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"
+                  ></path>
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">
+              Service Categories
+            </h3>
+            <div class="space-y-4">
+              <div>
+                <div class="flex justify-between text-sm mb-1">
+                  <span class="text-gray-600">Technical Support</span>
+                  <span class="font-medium text-green-600">93.2%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    class="bg-green-500 h-2 rounded-full progress-bar"
+                    style="width: 93%"
+                  ></div>
+                </div>
+              </div>
+              <div>
+                <div class="flex justify-between text-sm mb-1">
+                  <span class="text-gray-600">Consulting Services</span>
+                  <span class="font-medium text-blue-600">89.7%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    class="bg-blue-500 h-2 rounded-full progress-bar"
+                    style="width: 90%"
+                  ></div>
+                </div>
+              </div>
+              <div>
+                <div class="flex justify-between text-sm mb-1">
+                  <span class="text-gray-600">Implementation</span>
+                  <span class="font-medium text-purple-600">91.8%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    class="bg-purple-500 h-2 rounded-full progress-bar"
+                    style="width: 92%"
+                  ></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">
+              Planning Metrics
+            </h3>
+            <div class="space-y-3">
+              <div class="flex justify-between items-center">
+                <span class="text-sm text-gray-600">Capacity Planning</span>
+                <span class="text-sm font-medium text-green-600">88.4%</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-sm text-gray-600">Schedule Adherence</span>
+                <span class="text-sm font-medium text-blue-600">92.1%</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-sm text-gray-600">Quality Gates</span>
+                <span class="text-sm font-medium text-purple-600">95.3%</span>
+              </div>
+              <div class="flex justify-between items-center">
+                <span class="text-sm text-gray-600">Customer Satisfaction</span>
+                <span class="text-sm font-medium text-orange-600">4.4/5</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- BAP-SDP Dashboard -->
+      <div id="bap-sdp" class="dashboard-content">
+        <div class="mb-6">
+          <h2 class="text-xl font-bold text-gray-900 mb-2">
+            BAP - SDP Integration Quality Dashboard
+          </h2>
+          <p class="text-gray-600">
+            Integration efficiency, data synchronization, and cross-service
+            coordination metrics
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-gray-600 text-sm font-medium">
+                  Integration Health
+                </p>
+                <p class="text-3xl font-bold text-red-600">78.9%</p>
+              </div>
+              <div
+                class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center"
+              >
+                <svg
+                  class="w-6 h-6 text-red-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"
+                  ></path>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-gray-600 text-sm font-medium">Data Sync Rate</p>
+                <p class="text-3xl font-bold text-yellow-600">84.2%</p>
+              </div>
+              <div
+                class="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center"
+              >
+                <svg
+                  class="w-6 h-6 text-yellow-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                  ></path>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-gray-600 text-sm font-medium">
+                  Process Alignment
+                </p>
+                <p class="text-3xl font-bold text-orange-600">72.6%</p>
+              </div>
+              <div
+                class="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center"
+              >
+                <svg
+                  class="w-6 h-6 text-orange-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                  ></path>
+                </svg>
+              </div>
+            </div>
+          </div>
+          <div class="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-gray-600 text-sm font-medium">
+                  Active Integrations
+                </p>
+                <p class="text-3xl font-bold text-blue-600">12</p>
+              </div>
+              <div
+                class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center"
+              >
+                <svg
+                  class="w-6 h-6 text-blue-600"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                  ></path>
+                </svg>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">
+              Critical Issues
+            </h3>
+            <div class="space-y-3">
+              <div
+                class="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-200"
+              >
+                <span class="text-sm text-gray-900">Budget sync failures</span>
+                <span
+                  class="text-xs text-red-600 bg-red-100 px-2 py-1 rounded-full"
+                  >Critical</span
+                >
+              </div>
+              <div
+                class="flex items-center justify-between p-3 bg-red-50 rounded-lg border border-red-200"
+              >
+                <span class="text-sm text-gray-900"
+                  >Resource allocation conflicts</span
+                >
+                <span
+                  class="text-xs text-red-600 bg-red-100 px-2 py-1 rounded-full"
+                  >Critical</span
+                >
+              </div>
+              <div
+                class="flex items-center justify-between p-3 bg-yellow-50 rounded-lg border border-yellow-200"
+              >
+                <span class="text-sm text-gray-900">Timeline misalignment</span>
+                <span
+                  class="text-xs text-yellow-600 bg-yellow-100 px-2 py-1 rounded-full"
+                  >Medium</span
+                >
+              </div>
+              <div
+                class="flex items-center justify-between p-3 bg-yellow-50 rounded-lg border border-yellow-200"
+              >
+                <span class="text-sm text-gray-900"
+                  >Data validation errors</span
+                >
+                <span
+                  class="text-xs text-yellow-600 bg-yellow-100 px-2 py-1 rounded-full"
+                  >Medium</span
+                >
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">
+              Integration Points
+            </h3>
+            <div class="space-y-4">
+              <div>
+                <div class="flex justify-between text-sm mb-1">
+                  <span class="text-gray-600">Budget Planning Sync</span>
+                  <span class="font-medium text-red-600">68.3%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    class="bg-red-500 h-2 rounded-full progress-bar"
+                    style="width: 68%"
+                  ></div>
+                </div>
+              </div>
+              <div>
+                <div class="flex justify-between text-sm mb-1">
+                  <span class="text-gray-600">Resource Allocation</span>
+                  <span class="font-medium text-yellow-600">76.4%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    class="bg-yellow-500 h-2 rounded-full progress-bar"
+                    style="width: 76%"
+                  ></div>
+                </div>
+              </div>
+              <div>
+                <div class="flex justify-between text-sm mb-1">
+                  <span class="text-gray-600"
+                    >Service Delivery Coordination</span
+                  >
+                  <span class="font-medium text-green-600">89.7%</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    class="bg-green-500 h-2 rounded-full progress-bar"
+                    style="width: 90%"
+                  ></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <script>
+      let isLoginMode = true;
+
+      function showDashboard(dashboardId) {
+        // Hide all dashboards
+        document.querySelectorAll(".dashboard-content").forEach((dashboard) => {
+          dashboard.classList.remove("active");
+        });
+
+        // Remove active class from all nav tabs
+        document.querySelectorAll(".nav-tab").forEach((tab) => {
+          tab.classList.remove("active");
+        });
+
+        // Show selected dashboard
+        document.getElementById(dashboardId).classList.add("active");
+
+        // Add active class to clicked tab
+        event.target.closest(".nav-tab").classList.add("active");
+      }
+
+      function showLogin() {
+        isLoginMode = true;
+        document.getElementById("modalTitle").textContent = "Login";
+        document.getElementById("authSubmit").textContent = "Login";
+        document.getElementById("switchAuth").textContent =
+          "Don't have an account? Register";
+        document.getElementById("confirmPasswordDiv").style.display = "none";
+        document.getElementById("confirmPassword").required = false;
+        document.getElementById("loginModal").classList.add("active");
+      }
+
+      function showRegister() {
+        isLoginMode = false;
+        document.getElementById("modalTitle").textContent = "Register";
+        document.getElementById("authSubmit").textContent = "Register";
+        document.getElementById("switchAuth").textContent =
+          "Already have an account? Login";
+        document.getElementById("confirmPasswordDiv").style.display = "block";
+        document.getElementById("confirmPassword").required = true;
+        document.getElementById("loginModal").classList.add("active");
+      }
+
+      function switchAuthMode() {
+        if (isLoginMode) {
+          showRegister();
+        } else {
+          showLogin();
+        }
+      }
+
+      function closeModal() {
+        document.getElementById("loginModal").classList.remove("active");
+        document.getElementById("authForm").reset();
+      }
+
+      function handleAuth(event) {
+        event.preventDefault();
+        const email = document.getElementById("email").value;
+        const password = document.getElementById("password").value;
+        const confirmPassword =
+          document.getElementById("confirmPassword").value;
+
+        if (!isLoginMode && password !== confirmPassword) {
+          alert("Passwords do not match!");
+          return;
+        }
+
+        // Simulate authentication
+        const authBtn = document.getElementById("authSubmit");
+        authBtn.textContent = isLoginMode ? "Logging in..." : "Registering...";
+        authBtn.disabled = true;
+
+        setTimeout(() => {
+          closeModal();
+          // Show success message
+          const successDiv = document.createElement("div");
+          successDiv.className =
+            "fixed top-4 right-4 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg z-50";
+          successDiv.textContent = isLoginMode
+            ? "Login successful!"
+            : "Registration successful!";
+          document.body.appendChild(successDiv);
+
+          setTimeout(() => {
+            successDiv.remove();
+          }, 3000);
+
+          authBtn.textContent = isLoginMode ? "Login" : "Register";
+          authBtn.disabled = false;
+        }, 1500);
+      }
+
+      // Close modal when clicking outside
+      document
+        .getElementById("loginModal")
+        .addEventListener("click", function (e) {
+          if (e.target === this) {
+            closeModal();
+          }
+        });
+
+      // Auto-refresh timestamp every 30 seconds
+      setInterval(() => {
+        const now = new Date();
+        document.getElementById("lastUpdated").textContent =
+          now.toLocaleTimeString();
+      }, 30000);
+
+      // Pareto Chart Functions
+      function drawParetoChart(canvasId, data, title) {
+        const canvas = document.getElementById(canvasId);
+        if (!canvas) return;
+
+        const ctx = canvas.getContext("2d");
+        const width = canvas.width;
+        const height = canvas.height;
+
+        // Clear canvas
+        ctx.clearRect(0, 0, width, height);
+
+        // Calculate cumulative percentages
+        const total = data.reduce((sum, item) => sum + item.count, 0);
+        let cumulative = 0;
+        const chartData = data.map((item) => {
+          cumulative += item.count;
+          return {
+            ...item,
+            percentage: (item.count / total) * 100,
+            cumulative: (cumulative / total) * 100,
+          };
+        });
+
+        // Chart dimensions
+        const margin = { top: 20, right: 60, bottom: 80, left: 60 };
+        const chartWidth = width - margin.left - margin.right;
+        const chartHeight = height - margin.top - margin.bottom;
+
+        // Scales
+        const maxCount = Math.max(...chartData.map((d) => d.count));
+        const barWidth = (chartWidth / chartData.length) * 0.8;
+        const barSpacing = (chartWidth / chartData.length) * 0.2;
+
+        // Draw bars
+        chartData.forEach((item, index) => {
+          const x = margin.left + index * (barWidth + barSpacing);
+          const barHeight = (item.count / maxCount) * chartHeight;
+          const y = margin.top + chartHeight - barHeight;
+
+          // Bar color based on cumulative percentage
+          let color = "#3b82f6"; // blue
+          if (item.cumulative <= 80) {
+            color = "#ef4444"; // red for critical 80%
+          } else if (item.cumulative <= 95) {
+            color = "#f59e0b"; // yellow
+          } else {
+            color = "#10b981"; // green
+          }
+
+          ctx.fillStyle = color;
+          ctx.fillRect(x, y, barWidth, barHeight);
+
+          // Bar value labels
+          ctx.fillStyle = "#374151";
+          ctx.font = "10px sans-serif";
+          ctx.textAlign = "center";
+          ctx.fillText(item.count.toString(), x + barWidth / 2, y - 5);
+
+          // Category labels (rotated)
+          ctx.save();
+          ctx.translate(x + barWidth / 2, height - margin.bottom + 20);
+          ctx.rotate(-Math.PI / 4);
+          ctx.textAlign = "right";
+          ctx.fillText(item.label, 0, 0);
+          ctx.restore();
+        });
+
+        // Draw cumulative line
+        ctx.strokeStyle = "#dc2626";
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+
+        chartData.forEach((item, index) => {
+          const x =
+            margin.left + index * (barWidth + barSpacing) + barWidth / 2;
+          const y =
+            margin.top + chartHeight - (item.cumulative / 100) * chartHeight;
+
+          if (index === 0) {
+            ctx.moveTo(x, y);
+          } else {
+            ctx.lineTo(x, y);
+          }
+
+          // Cumulative percentage points
+          ctx.fillStyle = "#dc2626";
+          ctx.beginPath();
+          ctx.arc(x, y, 3, 0, 2 * Math.PI);
+          ctx.fill();
+
+          // Cumulative percentage labels
+          ctx.fillStyle = "#dc2626";
+          ctx.font = "9px sans-serif";
+          ctx.textAlign = "center";
+          ctx.fillText(item.cumulative.toFixed(0) + "%", x, y - 8);
+        });
+
+        ctx.stroke();
+
+        // Draw 80% reference line
+        const eightyPercentY =
+          margin.top + chartHeight - (80 / 100) * chartHeight;
+        ctx.strokeStyle = "#059669";
+        ctx.lineWidth = 1;
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.moveTo(margin.left, eightyPercentY);
+        ctx.lineTo(width - margin.right, eightyPercentY);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // 80% line label
+        ctx.fillStyle = "#059669";
+        ctx.font = "10px sans-serif";
+        ctx.textAlign = "left";
+        ctx.fillText("80% Line", width - margin.right + 5, eightyPercentY + 3);
+
+        // Y-axis labels (left - count)
+        ctx.fillStyle = "#6b7280";
+        ctx.font = "10px sans-serif";
+        ctx.textAlign = "right";
+        for (let i = 0; i <= 5; i++) {
+          const value = (maxCount / 5) * i;
+          const y = margin.top + chartHeight - (i / 5) * chartHeight;
+          ctx.fillText(Math.round(value).toString(), margin.left - 10, y + 3);
+        }
+
+        // Y-axis labels (right - percentage)
+        ctx.textAlign = "left";
+        for (let i = 0; i <= 5; i++) {
+          const value = (100 / 5) * i;
+          const y = margin.top + chartHeight - (i / 5) * chartHeight;
+          ctx.fillText(value + "%", width - margin.right + 10, y + 3);
+        }
+
+        // Axis labels
+        ctx.fillStyle = "#374151";
+        ctx.font = "12px sans-serif";
+        ctx.textAlign = "center";
+
+        // X-axis label
+        ctx.fillText("Issues", width / 2, height - 10);
+
+        // Y-axis labels
+        ctx.save();
+        ctx.translate(15, height / 2);
+        ctx.rotate(-Math.PI / 2);
+        ctx.fillText("Frequency", 0, 0);
+        ctx.restore();
+
+        ctx.save();
+        ctx.translate(width - 15, height / 2);
+        ctx.rotate(Math.PI / 2);
+        ctx.fillText("Cumulative %", 0, 0);
+        ctx.restore();
+      }
+
+      // Initialize charts when page loads
+      document.addEventListener("DOMContentLoaded", function () {
+        // Overview Pareto Chart Data
+        const overviewIssuesData = [
+          { label: "Integration Failures", count: 45 },
+          { label: "Data Validation", count: 32 },
+          { label: "API Timeouts", count: 28 },
+          { label: "Sync Delays", count: 18 },
+          { label: "Permission Errors", count: 12 },
+          { label: "Network Issues", count: 8 },
+          { label: "Config Errors", count: 5 },
+        ];
+
+        // Data Management Issues
+        const dataIssuesData = [
+          { label: "API Timeouts", count: 45 },
+          { label: "Validation Errors", count: 32 },
+          { label: "Sync Delays", count: 23 },
+          { label: "Schema Mismatches", count: 15 },
+          { label: "Connection Drops", count: 8 },
+        ];
+
+        drawParetoChart(
+          "paretoChart",
+          overviewIssuesData,
+          "Quality Issues Analysis"
+        );
+        drawParetoChart(
+          "dataIssuesPareto",
+          dataIssuesData,
+          "Data Management Issues"
+        );
+      });
+    </script>
+    <script>
+      (function () {
+        function c() {
+          var b = a.contentDocument || a.contentWindow.document;
+          if (b) {
+            var d = b.createElement("script");
+            d.innerHTML =
+              "window.__CF$cv$params={r:'98f41fca523c678e',t:'MTc2MDU4MTcyMS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";
+            b.getElementsByTagName("head")[0].appendChild(d);
+          }
+        }
+        if (document.body) {
+          var a = document.createElement("iframe");
+          a.height = 1;
+          a.width = 1;
+          a.style.position = "absolute";
+          a.style.top = 0;
+          a.style.left = 0;
+          a.style.border = "none";
+          a.style.visibility = "hidden";
+          document.body.appendChild(a);
+          if ("loading" !== document.readyState) c();
+          else if (window.addEventListener)
+            document.addEventListener("DOMContentLoaded", c);
+          else {
+            var e = document.onreadystatechange || function () {};
+            document.onreadystatechange = function (b) {
+              e(b);
+              "loading" !== document.readyState &&
+                ((document.onreadystatechange = e), c());
+            };
+          }
+        }
+      })();
+    </script>
+  </body>
+</html>
